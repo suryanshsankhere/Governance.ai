@@ -1,6 +1,7 @@
 fastapi
-uvicorn
+uvicorn[standard]
 pyyaml
 python-dotenv
 anthropic
-pytest
+httpx
+
