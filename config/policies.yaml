@@ -1,0 +1,29 @@
+# Company rules. The policy engine (plain code) reads these numbers.
+# Change a number here and the behaviour changes. No AI is involved in enforcing them.
+
+max_discount_percent: 20          # P-001 / P1: no discount above this
+refund_approval_threshold: 10000  # P-005 / P3: refunds above this (in rupees) need a human
+fact_max_age_hours: 24            # P-005: stored facts older than this are refreshed before use
+max_delegation_depth: 3           # P-007: maximum delegation depth
+max_llm_calls_per_request: 30     # P-006: cost guard
+max_tool_calls_per_request: 30    # P-006: loop guard
+min_margin_percent: 10            # V1: the manager rejects a plan with a profit margin below this
+max_plan_steps: 25                # Plan validator: maximum steps in a plan
+max_steps: 25                     # Task budget: maximum steps per task
+supplier_verification_max_age_days: 30  # P-004: supplier verification freshness
+
+# Version 3: Expanded policy pack (P-001 through P-011) with backward-compatible aliases
+# Shown on the dashboard.
+rules:
+  - { id: P-001, alias: P1, text: "No discount above 20%", enforced_by: "Policy engine (code)", if_broken: "Block and explain" }
+  - { id: P-002, alias: P2, text: "Never promote more units than are in stock", enforced_by: "Policy engine (code)", if_broken: "Block and explain" }
+  - { id: P-003, text: "Finance agent may prepare payments but not unilaterally execute", enforced_by: "Policy engine (code)", if_broken: "Block and escalate" }
+  - { id: P-004, alias: P4, text: "Agents may only use their tools and access authorized data (no stale/unverified supplier data for payments)", enforced_by: "Agent registry + gateway + knowledge hub", if_broken: "Block and log" }
+  - { id: P-005, alias: P3, text: "Refunds/payments above Rs 10,000 need human approval; facts older than 24h refreshed", enforced_by: "Policy engine + knowledge hub", if_broken: "Escalate to human / Refresh knowledge" }
+  - { id: P-006, text: "Separation of duties: requester cannot approve own request", enforced_by: "Gateway approval flow", if_broken: "Block" }
+  - { id: P-007, text: "Delegation depth maximum 3 levels", enforced_by: "Gateway", if_broken: "Block" }
+  - { id: P-008, text: "Support agent cannot access finance:* or employee-*:* data", enforced_by: "Policy engine", if_broken: "Block and log" }
+  - { id: P-009, text: "Code merge with passing tests and scans escalates to code_reviewer", enforced_by: "Policy engine", if_broken: "Escalate to human" }
+  - { id: P-010, text: "Code merge with failing tests is denied", enforced_by: "Policy engine", if_broken: "Block" }
+  - { id: P-011, text: "Agents cannot execute policy.modify, registry.modify, or audit.modify", enforced_by: "Policy engine + plan validator", if_broken: "Block immediately" }
+  - { id: V1, text: "A plan must keep at least a 10% profit margin", enforced_by: "Manager verification (code)", if_broken: "Reject the plan" }

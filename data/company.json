@@ -1,0 +1,18 @@
+{
+  "_note": "Made-up demo data. Not real customers.",
+  "products": {
+    "earbuds":    { "stock": 20,   "cost": 900,  "price": 1999 },
+    "phone case": { "stock": 1200, "cost": 150,  "price": 399 },
+    "smartwatch": { "stock": 300,  "cost": 1800, "price": 3499 }
+  },
+  "orders": {
+    "O-1001": {
+      "customer": "Ravi", "product": "earbuds", "amount": 1999, "status": "delivered",
+      "payment_status": "paid", "card_last4": "4242", "payment_token": "tok_demo_secret_do_not_leak_1", "refunded": 0
+    },
+    "O-2002": {
+      "customer": "Meera", "product": "smartwatch", "amount": 17495, "status": "delivered",
+      "payment_status": "paid", "card_last4": "1111", "payment_token": "tok_demo_secret_do_not_leak_2", "refunded": 0
+    }
+  }
+}

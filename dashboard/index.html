@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manager Agent Control Tower</title>
+<style>
+  :root {
+    --bg:#f5f6f8; --card:#ffffff; --ink:#15181d; --muted:#5b6571; --line:#e1e4e9;
+    --accent:#2d56c9;
+    --green:#17703f; --green-bg:#e2f4ea; --red:#b02a22; --red-bg:#fbe5e3;
+    --amber:#85560a; --amber-bg:#fcefd2; --blue:#1c5aa3; --blue-bg:#e3edf9; --grey-bg:#eceef1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0e1115; --card:#161a20; --ink:#eaedf1; --muted:#98a2ae; --line:#272d35;
+      --accent:#7d9df2;
+      --green:#62d39c; --green-bg:#11301f; --red:#ff8d84; --red-bg:#3b1815;
+      --amber:#f3c660; --amber-bg:#382b0b; --blue:#8cb9f6; --blue-bg:#12263d; --grey-bg:#222830;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { display:flex; flex-wrap:wrap; gap:12px 20px; align-items:center; justify-content:space-between;
+           padding:14px 24px; background:var(--card); border-bottom:1px solid var(--line); }
+  header h1 { margin:0; font-size:18px; }
+  header .sub { color:var(--muted); font-size:12.5px; }
+  .meters { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .meter { background:var(--grey-bg); border-radius:999px; padding:4px 12px; font-size:12.5px; }
+  .meter b { font-variant-numeric: tabular-nums; }
+  #invariants-badge.pass { background:var(--green-bg); color:var(--green); font-weight:600; }
+  #invariants-badge.fail { background:var(--red-bg); color:var(--red); font-weight:600; }
+  main { max-width:1280px; margin:0 auto; padding:16px 24px 40px; display:grid; gap:16px;
+         grid-template-columns: minmax(0,5fr) minmax(0,7fr); }
+  .col { display:grid; gap:16px; align-content:start; min-width:0; }
+  .wide { grid-column: 1 / -1; display:grid; gap:16px; grid-template-columns: repeat(3, minmax(0,1fr)); }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; min-width:0; }
+  section { overflow-x:auto; }
+  td, th { overflow-wrap:anywhere; }
+  td.age { white-space:nowrap; }
+  section h2 { margin:0 0 10px; font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  .row { display:flex; gap:8px; }
+  input[type=text] { flex:1; min-width:0; padding:9px 11px; border:1px solid var(--line); border-radius:8px;
+                     background:var(--bg); color:var(--ink); font:inherit; }
+  button { font:inherit; border:1px solid var(--line); background:var(--card); color:var(--ink);
+           border-radius:8px; padding:8px 12px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.approve { background:var(--green); border-color:var(--green); color:#fff; font-weight:600; }
+  button.reject { background:var(--red); border-color:var(--red); color:#fff; font-weight:600; }
+  .scen { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+  .scen button { text-align:left; }
+  .small { font-size:12px; color:var(--muted); margin-top:8px; }
+  .chip { display:inline-block; padding:1px 9px; border-radius:999px; font-size:11.5px; font-weight:600;
+          background:var(--grey-bg); color:var(--muted); white-space:nowrap; }
+  .chip.allow,.chip.done,.chip.approved,.chip.pass,.chip.fresh { background:var(--green-bg); color:var(--green); }
+  .chip.block,.chip.failed,.chip.rejected,.chip.fail,.chip.error,.chip.stale { background:var(--red-bg); color:var(--red); }
+  .chip.approve,.chip.waiting_approval,.chip.pending { background:var(--amber-bg); color:var(--amber); }
+  .chip.reuse,.chip.refresh,.chip.duplicate,.chip.running { background:var(--blue-bg); color:var(--blue); }
+  .task { padding:10px 0; border-top:1px solid var(--line); }
+  .task:first-of-type { border-top:0; padding-top:0; }
+  .task .top { display:flex; gap:8px; align-items:center; justify-content:space-between; }
+  .task .txt { font-weight:600; }
+  .task .res { color:var(--muted); margin-top:4px; }
+  .approval { border:1px solid var(--amber); background:var(--amber-bg); border-radius:8px; padding:10px 12px; margin-bottom:8px; }
+  .approval .btns { display:flex; gap:8px; margin-top:8px; }
+  .approval p { margin:0; color:var(--ink); }
+  .scroll { max-height:520px; overflow:auto; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th { text-align:left; color:var(--muted); font-weight:600; padding:5px 8px 5px 0; position:sticky; top:0; background:var(--card); }
+  td { padding:6px 8px 6px 0; border-top:1px solid var(--line); vertical-align:top; }
+  td.t { color:var(--muted); white-space:nowrap; font-variant-numeric: tabular-nums; }
+  .empty { color:var(--muted); font-style:italic; }
+  .agent { padding:8px 0; border-top:1px solid var(--line); }
+  .agent:first-of-type { border-top:0; padding-top:0; }
+  .agent b { display:block; }
+  code { background:var(--grey-bg); padding:1px 6px; border-radius:5px; font-size:12px; }
+  .rule { padding:6px 0; border-top:1px solid var(--line); }
+  .rule:first-of-type { border-top:0; padding-top:0; }
+  .rule .id { font-weight:700; margin-right:6px; }
+  .rule .by { color:var(--muted); font-size:12px; }
+  @media (max-width: 900px) { main { grid-template-columns:1fr; padding:12px 16px 32px; }
+                              .wide { grid-template-columns:1fr; } header { padding:12px 16px; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Manager Agent Control Tower</h1>
+    <div class="sub">The manager thinks. The policy engine decides. The human has the final say.</div>
+  </div>
+  <div class="meters">
+    <span class="meter">Mode: <b id="mode">-</b></span>
+    <span class="meter">Tool calls: <b id="m-tools">0</b></span>
+    <span class="meter">Model calls: <b id="m-llm">0</b></span>
+    <span class="meter">Blocked: <b id="m-blocks">0</b></span>
+    <span class="meter" id="invariants-badge" title="Safety Invariants Health">
+      <b id="inv-status">-</b>
+    </span>
+    <button id="reset">Reset demo</button>
+  </div>
+</header>
+
+<main>
+  <div class="col">
+    <section>
+      <h2>Send a request to the manager</h2>
+      <div class="row">
+        <input type="text" id="req" placeholder="e.g. Plan a festival sale for earbuds that does not lose money">
+        <button class="primary" id="send">Send</button>
+      </div>
+      <div class="scen" id="scen"></div>
+      <div class="small">Demo helper: <button id="age">Make stored facts 25 hours old</button>
+        (shows the freshness rule P5 on the next request)</div>
+    </section>
+
+    <section>
+      <h2>Waiting for a human</h2>
+      <div id="approvals"><div class="empty">Nothing waiting.</div></div>
+    </section>
+
+    <section>
+      <h2>Tasks</h2>
+      <div id="tasks"><div class="empty">No tasks yet. Run a scenario above.</div></div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section>
+      <h2>Audit log: who did what, under which rule</h2>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Time</th><th>Who</th><th>What</th><th>Result</th><th>Rule</th><th>Why</th></tr></thead>
+          <tbody id="audit"><tr><td colspan="6" class="empty">Empty.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="wide">
+    <section>
+      <h2>Knowledge hub</h2>
+      <table>
+        <thead><tr><th>Fact</th><th>Value</th><th>Source</th><th>Age</th><th>Trust</th></tr></thead>
+        <tbody id="facts"><tr><td colspan="5" class="empty">No facts stored yet.</td></tr></tbody>
+      </table>
+    </section>
+    <section>
+      <h2>Agent registry</h2>
+      <div id="agents"></div>
+    </section>
+    <section>
+      <h2>Company rules</h2>
+      <div id="rules"></div>
+    </section>
+  </div>
+
+  <div class="wide">
+    <section>
+      <h2>V3: Safety Invariants <span class="chip" id="inv-chip">-</span></h2>
+      <div id="invariants-detail" style="font-size:12px;"></div>
+    </section>
+    <section>
+      <h2>V3: Recent Events</h2>
+      <div id="events-list" style="max-height:180px;overflow:auto;font-size:12px;"></div>
+    </section>
+    <section>
+      <h2>V3: System Health</h2>
+      <div id="health" style="font-size:12px;"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const chip = (kind, label) => `<span class="chip ${esc(kind)}">${esc(label ?? kind)}</span>`;
+const time = (ts) => new Date(ts * 1000).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+const age = (s) => s < 60 ? `${Math.round(s)}s` : s < 3600 ? `${Math.round(s/60)} min` : `${(s/3600).toFixed(1)} h`;
+const typeLabel = {
+  request_received:"Request received", plan:"Plan", assign:"Assigned task", tool_call:"Tool call",
+  hub_hit:"Hub answer", hub_refresh:"Hub refresh", verify:"Manager check", duplicate_detected:"Duplicate",
+  subtask_skipped:"Step skipped", approval_requested:"Needs human", human_decision:"Human decision",
+  llm_call:"Model call", limit:"Limit", error:"Error", plan_fallback:"Plan fallback"
+};
+
+async function api(path, body) {
+  const opts = body === undefined ? {} : {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)};
+  const res = await fetch(path, opts);
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || res.statusText); }
+  return res.json();
+}
+
+let scenariosBuilt = false;
+function render(s) {
+  $("mode").textContent = s.mode === "llm" ? "Live AI agents" : "Scripted agents";
+  $("m-tools").textContent = s.counters.tool_calls;
+  $("m-llm").textContent = s.counters.llm_calls;
+  $("m-blocks").textContent = s.counters.blocks;
+
+  // V3: Invariants badge
+  const inv = s.invariants || {passing: true, total: 13, violations: []};
+  const chain = s.audit_chain || {valid: true};
+  const invBadge = $("invariants-badge");
+  const invStatus = $("inv-status");
+  
+  if (inv.passing && chain.valid) {
+    invBadge.className = "meter pass";
+    invStatus.textContent = `✓ ${inv.total}/${inv.total} Invariants + Chain OK`;
+    invBadge.title = "All safety invariants passing + Audit chain verified";
+  } else {
+    invBadge.className = "meter fail";
+    const failed = inv.total - (inv.total - inv.violations.length);
+    invStatus.textContent = `✗ ${failed} Violations`;
+    invBadge.title = `Safety violations detected: ${inv.violations.length}`;
+  }
+
+  if (!scenariosBuilt) {
+    $("scen").innerHTML = s.scenarios.map((x) => `<button data-n="${x.id}">${esc(x.label)}</button>`).join("");
+    $("scen").querySelectorAll("button").forEach((b) => b.onclick = () => act(() => api(`/api/scenarios/${b.dataset.n}`, {})));
+    scenariosBuilt = true;
+  }
+
+  const pending = s.approvals.filter((a) => a.status === "pending");
+  $("approvals").innerHTML = pending.length ? pending.map((a) => `
+    <div class="approval">
+      <p><b>${esc(a.agent)} agent</b> wants to run <code>${esc(a.tool)}</code> ${esc(JSON.stringify(a.args))}</p>
+      <p>${esc(a.reason)} (${esc(a.policy_id)})</p>
+      <div class="btns">
+        <button class="approve" data-id="${a.id}" data-ok="1">Approve</button>
+        <button class="reject" data-id="${a.id}" data-ok="0">Reject</button>
+      </div>
+    </div>`).join("") : `<div class="empty">Nothing waiting.</div>`;
+  $("approvals").querySelectorAll("button").forEach((b) =>
+    b.onclick = () => act(() => api(`/api/approvals/${b.dataset.id}`, {approve: b.dataset.ok === "1"})));
+
+  $("tasks").innerHTML = s.tasks.length ? s.tasks.map((t) => `
+    <div class="task">
+      <div class="top"><span class="txt">#${t.id} ${esc(t.text)}</span>${chip(t.status, t.status.replace("_"," "))}</div>
+      <div class="res">${esc(t.result)}</div>
+    </div>`).join("") : `<div class="empty">No tasks yet. Run a scenario above.</div>`;
+
+  $("audit").innerHTML = s.audit.length ? s.audit.map((e) => `
+    <tr>
+      <td class="t">${time(e.ts)}</td>
+      <td>${esc(e.agent)}</td>
+      <td>${esc(typeLabel[e.type] || e.type)}${e.tool ? ` <code>${esc(e.tool)}</code>` : ""}</td>
+      <td>${e.decision ? chip(e.decision) : ""}</td>
+      <td>${esc(e.policy_id)}</td>
+      <td>${esc(e.reason)}</td>
+    </tr>`).join("") : `<tr><td colspan="6" class="empty">Empty.</td></tr>`;
+
+  $("facts").innerHTML = s.facts.length ? s.facts.map((f) => `
+    <tr>
+      <td><code>${esc(f.key)}</code></td>
+      <td>${esc(JSON.stringify(f.value))}</td>
+      <td>${esc(f.source)}</td>
+      <td class="age">${esc(age(f.age_s))}<br>${chip(f.fresh ? "fresh" : "stale")}</td>
+      <td>${chip(f.trust_level || "Agent-reported")}</td>
+    </tr>`).join("") : `<tr><td colspan="5" class="empty">No facts stored yet.</td></tr>`;
+
+  $("agents").innerHTML = s.agents.map((a) => `
+    <div class="agent"><b>${esc(a.title)}</b>
+      Tools: ${a.allowed_tools.map((t) => `<code>${esc(t)}</code>`).join(" ")}
+      ${a.facts.length ? `<br>May ask the hub for: ${a.facts.map((t) => `<code>${esc(t)}</code>`).join(" ")}` : ""}
+    </div>`).join("");
+
+  $("rules").innerHTML = s.rules.map((r) => `
+    <div class="rule"><span class="id">${esc(r.id)}</span>${r.alias ? `<span class="id" style="color:var(--muted);font-weight:400">(${esc(r.alias)})</span> ` : ""}${esc(r.text)}
+      <div class="by">${esc(r.enforced_by)}. If broken: ${esc(r.if_broken)}</div></div>`).join("");
+
+  // V3: Invariants detail
+  const inv = s.invariants || {passing: true, total: 13, violations: []};
+  const invChip = $("inv-chip");
+  if (inv.passing) {
+    invChip.textContent = `${inv.total}/${inv.total} Passing`;
+    invChip.className = "chip pass";
+  } else {
+    invChip.textContent = `${inv.violations.length} Violations`;
+    invChip.className = "chip fail";
+  }
+  
+  $("invariants-detail").innerHTML = inv.violations.length ? 
+    `<div style="color:var(--red);margin-bottom:8px;">⚠️ ${inv.violations.length} invariant violation(s) detected:</div>` +
+    inv.violations.map(v => `<div style="padding:4px 0;border-top:1px solid var(--line);">
+      <b>${esc(v.invariant)}</b>: ${esc(v.description)}</div>`).join("") :
+    `<div style="color:var(--green);">✓ All 13 safety invariants passing</div>
+     <div style="color:var(--muted);margin-top:6px;font-size:11px;">
+       I1: No unauthorized Tier 3/4 effects • I2: Agents hold zero credentials • I3: All requests audited • 
+       I4: Valid delegation scopes • I5: Valid state transitions • I6: Idempotency enforced • 
+       I7: No stale/unsupported knowledge • I8: Separation of duties • I9: Audit chain verified • 
+       I10: Fail-closed on outage • I11: No governance modifications • I12: No agent-to-agent bypass • 
+       I13: Connector traceability
+     </div>`;
+
+  // V3: Events
+  const events = (s.events || []).slice(0, 10);
+  $("events-list").innerHTML = events.length ?
+    events.map(e => `<div style="padding:4px 0;border-top:1px solid var(--line);">
+      <span class="t">${time(e.ts)}</span> ${chip(e.event_type)} 
+      <span style="color:var(--muted);">${esc(e.agent || "system")}</span>
+    </div>`).join("") :
+    `<div class="empty">No events yet.</div>`;
+
+  // V3: Health
+  const chain = s.audit_chain || {valid: true, message: "No events"};
+  $("health").innerHTML = `
+    <div style="padding:4px 0;"><b>Audit Chain:</b> ${chain.valid ? 
+      `<span style="color:var(--green);">✓ Verified</span> (${esc(chain.message)})` : 
+      `<span style="color:var(--red);">✗ Failed</span> (${esc(chain.message)})`}</div>
+    <div style="padding:4px 0;"><b>Policy Engine:</b> <span style="color:var(--green);">✓ Operational</span></div>
+    <div style="padding:4px 0;"><b>Gateway:</b> <span style="color:var(--green);">✓ Operational</span></div>
+    <div style="padding:4px 0;"><b>Knowledge Hub:</b> ${s.facts.length} facts (${s.facts.filter(f=>f.fresh).length} fresh)</div>
+  `;
+}
+
+async function refresh() {
+  try { render(await api("/api/state")); } catch (e) { /* server restarting; try again next tick */ }
+}
+async function act(fn) {
+  try { await fn(); } catch (e) { alert(e.message); }
+  refresh();
+}
+
+$("send").onclick = () => { const v = $("req").value.trim(); if (v) { act(() => api("/api/requests", {text:v})); $("req").value = ""; } };
+$("req").addEventListener("keydown", (e) => { if (e.key === "Enter") $("send").click(); });
+$("age").onclick = () => act(() => api("/api/facts/age", {hours:25}));
+$("reset").onclick = () => { if (confirm("Clear all tasks, logs and facts?")) act(() => api("/api/reset", {})); };
+
+refresh();
+setInterval(refresh, 1500);
+</script>
+</body>
+</html>

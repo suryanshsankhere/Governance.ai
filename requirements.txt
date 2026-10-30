@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+pyyaml
+python-dotenv
+anthropic
+pytest

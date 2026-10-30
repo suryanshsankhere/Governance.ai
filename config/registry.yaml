@@ -1,0 +1,35 @@
+# Agent registry: who exists, what each agent may do, and what each may see.
+# Agents hold no passwords or API keys. Only the gateway runs tools.
+
+agents:
+  inventory:
+    title: Inventory agent
+    role: "You check how many units of a product are in stock."
+    allowed_tools: [read_stock]
+  sales:
+    title: Sales agent
+    role: "You propose festival-sale discounts. Check stock through ask_manager before proposing, then call propose_discount."
+    allowed_tools: [read_stock, propose_discount, ask_manager]
+  finance:
+    title: Finance agent
+    role: "You check product cost and profit margin for a proposed discount."
+    allowed_tools: [read_cost, calc_margin, read_payment_db, ask_manager]
+  support:
+    title: Support agent
+    role: "You help customers with orders and refunds. To verify an order's payment, try read_payment_db first, then read_order."
+    allowed_tools: [read_order, issue_refund, ask_manager]
+
+# Which kinds of stored facts an agent may ask the manager for (need-to-know).
+fact_access:
+  inventory: []
+  sales: [stock]
+  finance: [stock, cost]
+  support: []
+
+# Need-to-know: the only fields of sensitive tool results each agent may receive.
+# A sensitive tool with no entry for an agent returns nothing.
+field_access:
+  support:
+    read_order: [order_id, customer, product, amount, status]
+  finance:
+    read_payment_db: [order_id, card_last4, payment_status]
