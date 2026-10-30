@@ -194,14 +194,16 @@ async function api(path, body) {
 
 let scenariosBuilt = false;
 function render(s) {
+  // Hoist shared variables to avoid duplicate-const SyntaxError
+  const inv = s.invariants || {passing: true, total: 13, violations: []};
+  const chain = s.audit_chain || {valid: true, message: "No events"};
+
   $("mode").textContent = s.mode === "llm" ? "Live AI agents" : "Scripted agents";
   $("m-tools").textContent = s.counters.tool_calls;
   $("m-llm").textContent = s.counters.llm_calls;
   $("m-blocks").textContent = s.counters.blocks;
 
   // V3: Invariants badge
-  const inv = s.invariants || {passing: true, total: 13, violations: []};
-  const chain = s.audit_chain || {valid: true};
   const invBadge = $("invariants-badge");
   const invStatus = $("inv-status");
   
@@ -271,7 +273,6 @@ function render(s) {
       <div class="by">${esc(r.enforced_by)}. If broken: ${esc(r.if_broken)}</div></div>`).join("");
 
   // V3: Invariants detail
-  const inv = s.invariants || {passing: true, total: 13, violations: []};
   const invChip = $("inv-chip");
   if (inv.passing) {
     invChip.textContent = `${inv.total}/${inv.total} Passing`;
@@ -304,7 +305,6 @@ function render(s) {
     `<div class="empty">No events yet.</div>`;
 
   // V3: Health
-  const chain = s.audit_chain || {valid: true, message: "No events"};
   $("health").innerHTML = `
     <div style="padding:4px 0;"><b>Audit Chain:</b> ${chain.valid ? 
       `<span style="color:var(--green);">✓ Verified</span> (${esc(chain.message)})` : 
